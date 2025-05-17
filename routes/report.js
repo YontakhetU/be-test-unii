@@ -29,7 +29,9 @@ router.get("/search", async (req, res) => {
     const normalizeSubCategoryId = (id) => id.toString().padStart(4, "0");
 
     const normCategoryId = categoryId ? normalizeCategoryId(categoryId) : null;
-    const normSubCategoryId = subCategoryId ? normalizeSubCategoryId(subCategoryId) : null;
+    const normSubCategoryId = subCategoryId
+      ? normalizeSubCategoryId(subCategoryId)
+      : null;
 
     let transactions = [...buyTransaction, ...sellTransaction];
 
@@ -40,12 +42,15 @@ router.get("/search", async (req, res) => {
       // console.log(new Date(transactions[0].orderFinishedDate))
       // console.log(new Date(transactions[0].orderFinishedDate) >= start)
 
-      transactions = transactions.filter((t) => new Date(t.orderFinishedDate) >= start);
-
+      transactions = transactions.filter(
+        (t) => new Date(t.orderFinishedDate) >= start
+      );
     }
     if (endDate) {
       const end = new Date(endDate);
-      transactions = transactions.filter((t) => new Date(t.orderFinishedDate) <= end);
+      transactions = transactions.filter(
+        (t) => new Date(t.orderFinishedDate) <= end
+      );
     }
     if (orderId) {
       transactions = transactions.filter((t) => t.orderId === orderId);
@@ -56,7 +61,9 @@ router.get("/search", async (req, res) => {
       transactions = transactions
         .map((t) => ({
           ...t,
-          requestList: (t.requestList || []).filter((r) => r.categoryID === normCategoryId),
+          requestList: (t.requestList || []).filter(
+            (r) => r.categoryID === normCategoryId
+          ),
         }))
         .filter((t) => t.requestList.length > 0);
     }
@@ -65,16 +72,22 @@ router.get("/search", async (req, res) => {
     if (normSubCategoryId || grade || minPrice || maxPrice) {
       transactions = transactions
         .map((t) => {
-          const filteredGroups = (t.requestList || []).map((group) => ({
-            ...group,
-            requestList: (group.requestList || []).filter((r) => {
-              if (normSubCategoryId && group.subCategoryID !== normSubCategoryId) return false;
-              if (grade && r.grade !== grade) return false;
-              if (minPrice && r.total < parseFloat(minPrice)) return false;
-              if (maxPrice && r.total > parseFloat(maxPrice)) return false;
-              return true;
-            }),
-          })).filter((g) => g.requestList.length > 0);
+          const filteredGroups = (t.requestList || [])
+            .map((group) => ({
+              ...group,
+              requestList: (group.requestList || []).filter((r) => {
+                if (
+                  normSubCategoryId &&
+                  group.subCategoryID !== normSubCategoryId
+                )
+                  return false;
+                if (grade && r.grade !== grade) return false;
+                if (minPrice && r.total < parseFloat(minPrice)) return false;
+                if (maxPrice && r.total > parseFloat(maxPrice)) return false;
+                return true;
+              }),
+            }))
+            .filter((g) => g.requestList.length > 0);
 
           return { ...t, requestList: filteredGroups };
         })
@@ -82,32 +95,41 @@ router.get("/search", async (req, res) => {
     }
 
     // --- Step 4: Keyword filter (by subCategoryName) ---
-if (keyword?.trim()) {
-  const lowerKeyword = keyword.toLowerCase();
+    if (keyword?.trim()) {
+      const lowerKeyword = keyword.toLowerCase();
 
-  transactions = transactions
-    .map((t) => {
-      const matchesOrderId = t.orderId?.toLowerCase().includes(lowerKeyword);
+      transactions = transactions
+        .map((t) => {
+          const matchesOrderId = t.orderId
+            ?.toLowerCase()
+            .includes(lowerKeyword);
 
-      const filteredGroups = (t.requestList || []).map((group) => {
-        const sub = productMap
-          .get(group.categoryID)
-          ?.subcategory?.find((s) => s.subCategoryId === group.subCategoryID);
-        const name = sub?.subCategoryName?.toLowerCase() || "";
+          const filteredGroups = (t.requestList || [])
+            .map((group) => {
+              const sub = productMap
+                .get(group.categoryID)
+                ?.subcategory?.find(
+                  (s) => s.subCategoryId === group.subCategoryID
+                );
+              const name = sub?.subCategoryName?.toLowerCase() || "";
 
-        return name.includes(lowerKeyword) ? group : null;
-      }).filter(Boolean);
+              return name.includes(lowerKeyword) ? group : null;
+            })
+            .filter(Boolean);
 
-      // Keep the original requestList if orderId matches
-      if (matchesOrderId && filteredGroups.length === 0) {
-        return t;
-      }
+          // Keep the original requestList if orderId matches
+          if (matchesOrderId && filteredGroups.length === 0) {
+            return t;
+          }
 
-      return { ...t, requestList: filteredGroups };
-    })
-    .filter((t) => t.requestList.length > 0 || t.orderId?.toLowerCase().includes(lowerKeyword));
-}
-
+          return { ...t, requestList: filteredGroups };
+        })
+        .filter(
+          (t) =>
+            t.requestList.length > 0 ||
+            t.orderId?.toLowerCase().includes(lowerKeyword)
+        );
+    }
 
     // --- Step 5: Summary ---
     const summaryMap = new Map();
@@ -151,13 +173,16 @@ if (keyword?.trim()) {
 
     const data = Array.from(summaryMap.values()).map((rec) => {
       const cat = productMap.get(rec.categoryId);
-      const sub = cat?.subcategory?.find((s) => s.subCategoryId === rec.subCategoryId);
+      const sub = cat?.subcategory?.find(
+        (s) => s.subCategoryId === rec.subCategoryId
+      );
 
       return {
         categoryId: rec.categoryId,
         subCategoryId: rec.subCategoryId,
         categoryName: cat?.categoryName || `Category ${rec.categoryId}`,
-        subCategoryName: sub?.subCategoryName || `SubCategory ${rec.subCategoryId}`,
+        subCategoryName:
+          sub?.subCategoryName || `SubCategory ${rec.subCategoryId}`,
         buyWeight: rec.buyWeight,
         buyTotal: rec.buyTotal,
         sellWeight: rec.sellWeight,
@@ -170,28 +195,31 @@ if (keyword?.trim()) {
       };
     });
 
-    const summary = data.reduce((acc, curr) => {
-      acc.totalBuyWeight += curr.buyWeight;
-      acc.totalBuyTotal += curr.buyTotal;
-      acc.totalSellWeight += curr.sellWeight;
-      acc.totalSellTotal += curr.sellTotal;
-      acc.totalRemainWeight += curr.remainWeight;
-      acc.totalRemainAmount += curr.remainAmount;
-      acc.totalBuyCount += curr.buyCount;
-      acc.totalSellCount += curr.sellCount;
-      acc.totalRemainCount += curr.remainCount;
-      return acc;
-    }, {
-      totalBuyWeight: 0,
-      totalBuyTotal: 0,
-      totalSellWeight: 0,
-      totalSellTotal: 0,
-      totalRemainWeight: 0,
-      totalRemainAmount: 0,
-      totalBuyCount: 0,
-      totalSellCount: 0,
-      totalRemainCount: 0,
-    });
+    const summary = data.reduce(
+      (acc, curr) => {
+        acc.totalBuyWeight += curr.buyWeight;
+        acc.totalBuyTotal += curr.buyTotal;
+        acc.totalSellWeight += curr.sellWeight;
+        acc.totalSellTotal += curr.sellTotal;
+        acc.totalRemainWeight += curr.remainWeight;
+        acc.totalRemainAmount += curr.remainAmount;
+        acc.totalBuyCount += curr.buyCount;
+        acc.totalSellCount += curr.sellCount;
+        acc.totalRemainCount += curr.remainCount;
+        return acc;
+      },
+      {
+        totalBuyWeight: 0,
+        totalBuyTotal: 0,
+        totalSellWeight: 0,
+        totalSellTotal: 0,
+        totalRemainWeight: 0,
+        totalRemainAmount: 0,
+        totalBuyCount: 0,
+        totalSellCount: 0,
+        totalRemainCount: 0,
+      }
+    );
 
     return res.json({ summary, data });
   } catch (err) {
@@ -199,7 +227,6 @@ if (keyword?.trim()) {
     res.status(500).json({ message: "Error fetching or processing data" });
   }
 });
-
 
 // Fetch all categories
 router.get("/categories", async (req, res) => {
@@ -212,7 +239,7 @@ router.get("/categories", async (req, res) => {
       categoryId: item.categoryId,
       categoryName: item.categoryName,
     }));
-    res.json(categories);
+    res.json({ data: categories });
   } catch (error) {
     console.error("Error fetching categories:", error.message);
     res.status(500).json({ error: "Failed to fetch categories" });
@@ -236,7 +263,7 @@ router.get("/subcategories/:categoryId", async (req, res) => {
       subCategoryName: item.subCategoryName,
     }));
 
-    res.json(formattedSubcategories);
+    res.json({ data: formattedSubcategories });
   } catch (error) {
     console.error("Error fetching subcategories:", error.message);
     res.status(500).json({ error: "Failed to fetch subcategories" });

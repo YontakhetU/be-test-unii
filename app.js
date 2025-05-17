@@ -14,7 +14,7 @@ const app = express();
 
 // ✅ Enable CORS for all origins (or configure below)
 app.use(cors({
-  origin: 'http://localhost:3001', // replace with your frontend domain
+  origin: ['http://localhost:3001','http://localhost:3000'], // replace with your frontend domain
   credentials: true,
 }));
 
