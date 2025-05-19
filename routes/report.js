@@ -35,7 +35,7 @@ router.get("/search", async (req, res) => {
 
     let transactions = [...buyTransaction, ...sellTransaction];
 
-    // --- Step 1: Filter transaction-level ---
+   
     if (startDate) {
       const start = new Date(startDate);
       transactions = transactions.filter(
@@ -52,7 +52,7 @@ router.get("/search", async (req, res) => {
       transactions = transactions.filter((t) => t.orderId === orderId);
     }
 
-    // --- Step 2: Filter category ---
+   
     if (normCategoryId) {
       transactions = transactions
         .map((t) => ({
@@ -64,7 +64,7 @@ router.get("/search", async (req, res) => {
         .filter((t) => t.requestList.length > 0);
     }
 
-    // --- Step 3: Filter subCategory, grade, price ---
+   
     if (normSubCategoryId || grade || minPrice || maxPrice) {
       transactions = transactions
         .map((t) => {
@@ -90,7 +90,7 @@ router.get("/search", async (req, res) => {
         .filter((t) => t.requestList.length > 0);
     }
 
-    // --- Step 4: Keyword filter (by subCategoryName or orderId) ---
+   
     if (keyword?.trim()) {
       const lowerKeyword = keyword.toLowerCase();
 
@@ -126,7 +126,7 @@ router.get("/search", async (req, res) => {
         );
     }
 
-    // Step 5: Summary
+   
     const summaryMap = new Map();
     const buyOrderIds = new Set(buyTransaction.map((t) => t.orderId));
 
@@ -225,7 +225,7 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// Fetch all categories
+
 router.get("/categories", async (req, res) => {
   try {
     const response = await axios.get(
@@ -243,7 +243,6 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// Fetch subcategories by categoryId
 router.get("/subcategories/:categoryId", async (req, res) => {
   const { categoryId } = req.params;
   try {
