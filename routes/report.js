@@ -38,10 +38,6 @@ router.get("/search", async (req, res) => {
     // --- Step 1: Filter transaction-level ---
     if (startDate) {
       const start = new Date(startDate);
-      // console.log(start)
-      // console.log(new Date(transactions[0].orderFinishedDate))
-      // console.log(new Date(transactions[0].orderFinishedDate) >= start)
-
       transactions = transactions.filter(
         (t) => new Date(t.orderFinishedDate) >= start
       );
@@ -94,7 +90,7 @@ router.get("/search", async (req, res) => {
         .filter((t) => t.requestList.length > 0);
     }
 
-    // --- Step 4: Keyword filter (by subCategoryName) ---
+    // --- Step 4: Keyword filter (by subCategoryName or orderId) ---
     if (keyword?.trim()) {
       const lowerKeyword = keyword.toLowerCase();
 
@@ -117,7 +113,6 @@ router.get("/search", async (req, res) => {
             })
             .filter(Boolean);
 
-          // Keep the original requestList if orderId matches
           if (matchesOrderId && filteredGroups.length === 0) {
             return t;
           }
@@ -131,45 +126,48 @@ router.get("/search", async (req, res) => {
         );
     }
 
-    // --- Step 5: Summary ---
-    const summaryMap = new Map();
+ // Step 5: Summary
+const summaryMap = new Map();
+const buyOrderIds = new Set(buyTransaction.map((t) => t.orderId)); // <-- แก้ตรงนี้
 
-    transactions.forEach((t) => {
-      const isBuy = buyTransaction.includes(t);
+transactions.forEach((t) => {
+  const isBuy = buyOrderIds.has(t.orderId); // <-- แก้ตรงนี้
 
-      t.requestList.forEach((group) => {
-        const key = `${group.categoryID}-${group.subCategoryID}`;
+  t.requestList.forEach((group) => {
+    const key = `${group.categoryID}-${group.subCategoryID}`;
 
-        if (!summaryMap.has(key)) {
-          summaryMap.set(key, {
-            categoryId: group.categoryID,
-            subCategoryId: group.subCategoryID,
-            buyWeight: 0,
-            sellWeight: 0,
-            buyTotal: 0,
-            sellTotal: 0,
-            buyCount: 0,
-            sellCount: 0,
-          });
-        }
-
-        const record = summaryMap.get(key);
-
-        group.requestList.forEach((r) => {
-          const quantity = parseFloat(r.quantity || 0);
-          const total = parseFloat(r.total || 0);
-          if (isBuy) {
-            record.buyWeight += quantity;
-            record.buyTotal += total;
-            record.buyCount++;
-          } else {
-            record.sellWeight += quantity;
-            record.sellTotal += total;
-            record.sellCount++;
-          }
-        });
+    if (!summaryMap.has(key)) {
+      summaryMap.set(key, {
+        categoryId: group.categoryID,
+        subCategoryId: group.subCategoryID,
+        buyWeight: 0,
+        sellWeight: 0,
+        buyTotal: 0,
+        sellTotal: 0,
+        buyCount: 0,
+        sellCount: 0,
       });
+    }
+
+    const record = summaryMap.get(key);
+
+    group.requestList.forEach((r) => {
+      const quantity = parseFloat(r.quantity || 0);
+      const total = parseFloat(r.total || 0);
+    
+      if (isBuy) {
+        record.buyWeight += quantity;
+        record.buyTotal += total;
+        if (total > 0) record.buyCount++;
+      } else {
+        record.sellWeight += quantity;
+        record.sellTotal += total;
+        if (total > 0) record.sellCount++;
+      }
     });
+  });
+});
+
 
     const data = Array.from(summaryMap.values()).map((rec) => {
       const cat = productMap.get(rec.categoryId);
@@ -227,6 +225,7 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ message: "Error fetching or processing data" });
   }
 });
+
 
 // Fetch all categories
 router.get("/categories", async (req, res) => {
