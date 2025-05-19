@@ -126,48 +126,47 @@ router.get("/search", async (req, res) => {
         );
     }
 
- // Step 5: Summary
-const summaryMap = new Map();
-const buyOrderIds = new Set(buyTransaction.map((t) => t.orderId)); // <-- แก้ตรงนี้
+    // Step 5: Summary
+    const summaryMap = new Map();
+    const buyOrderIds = new Set(buyTransaction.map((t) => t.orderId));
 
-transactions.forEach((t) => {
-  const isBuy = buyOrderIds.has(t.orderId); // <-- แก้ตรงนี้
+    transactions.forEach((t) => {
+      const isBuy = buyOrderIds.has(t.orderId);
 
-  t.requestList.forEach((group) => {
-    const key = `${group.categoryID}-${group.subCategoryID}`;
+      t.requestList.forEach((group) => {
+        const key = `${group.categoryID}-${group.subCategoryID}`;
 
-    if (!summaryMap.has(key)) {
-      summaryMap.set(key, {
-        categoryId: group.categoryID,
-        subCategoryId: group.subCategoryID,
-        buyWeight: 0,
-        sellWeight: 0,
-        buyTotal: 0,
-        sellTotal: 0,
-        buyCount: 0,
-        sellCount: 0,
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, {
+            categoryId: group.categoryID,
+            subCategoryId: group.subCategoryID,
+            buyWeight: 0,
+            sellWeight: 0,
+            buyTotal: 0,
+            sellTotal: 0,
+            buyCount: 0,
+            sellCount: 0,
+          });
+        }
+
+        const record = summaryMap.get(key);
+
+        group.requestList.forEach((r) => {
+          const quantity = parseFloat(r.quantity || 0);
+          const total = parseFloat(r.total || 0);
+
+          if (isBuy) {
+            record.buyWeight += quantity;
+            record.buyTotal += total;
+            if (total > 0) record.buyCount++;
+          } else {
+            record.sellWeight += quantity;
+            record.sellTotal += total;
+            if (total > 0) record.sellCount++;
+          }
+        });
       });
-    }
-
-    const record = summaryMap.get(key);
-
-    group.requestList.forEach((r) => {
-      const quantity = parseFloat(r.quantity || 0);
-      const total = parseFloat(r.total || 0);
-    
-      if (isBuy) {
-        record.buyWeight += quantity;
-        record.buyTotal += total;
-        if (total > 0) record.buyCount++;
-      } else {
-        record.sellWeight += quantity;
-        record.sellTotal += total;
-        if (total > 0) record.sellCount++;
-      }
     });
-  });
-});
-
 
     const data = Array.from(summaryMap.values()).map((rec) => {
       const cat = productMap.get(rec.categoryId);
@@ -225,7 +224,6 @@ transactions.forEach((t) => {
     res.status(500).json({ message: "Error fetching or processing data" });
   }
 });
-
 
 // Fetch all categories
 router.get("/categories", async (req, res) => {
